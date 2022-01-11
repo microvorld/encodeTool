@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	result []byte
+	result string
 	encodestr string
 )
 
@@ -19,17 +19,19 @@ func main()  {  // 错误，{ 不能在单独的行上
 
 	if(encodestr!=""){
 		result := hexencode(encodestr)
-		fmt.Printf("编码结果：%s",result)
+		//rs := []rune(result)
+		fmt.Printf("编码结果：%v",result)
 	}
 }
 
 
-func hexencode(strvar string) []byte {
+//hex编码
+func hexencode(strvar string) string {
 	
 	src := []byte(strvar)
 
-	dst := make([]byte, hex.EncodedLen(len(src)))
-	hex.Encode(dst, src)
+	dst := hex.EncodeToString(src)
+	//hex.Encode(dst, src)
 
 	return dst
  }

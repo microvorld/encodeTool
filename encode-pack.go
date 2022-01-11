@@ -9,19 +9,24 @@ import (
 
 var (
 	result string
-	encodestr string
+	hexstr string
+	base64str string
 )
 
 func main()  {  // 错误，{ 不能在单独的行上
 
-	flag.StringVar(&encodestr, "es", "", "要编码的参数,默认为空")
+	flag.StringVar(&hexstr, "hexs", "", "要hex编码的参数,默认为空")
+	flag.StringVar(&base64str, "b64s", "", "要base64编码的参数,默认为空")
 	flag.Parse()
 
-	if(encodestr!=""){
-		result := hexencode(encodestr)
+	if(hexstr!=""){
+		result := hexencode(hexstr)
 		//rs := []rune(result)
 		fmt.Printf("编码结果：%v",result)
+	}else if (base64str!="") {
+		fmt.Printf("编码结果：%v",result)
 	}
+
 }
 
 

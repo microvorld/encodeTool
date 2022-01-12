@@ -8,10 +8,13 @@ import (
     "io/ioutil"
     "os"
     "flag"
-    //"github.com/google/uuid"
+    "github.com/google/uuid"
 	"math/rand"
 	"time"
 	"unsafe"
+	"bytes"
+	"encoding/binary"
+	"bufio"
 )
 
 const (
@@ -29,6 +32,7 @@ var (
 	hexpath string
 	b64path string
 	xorpath string
+	uuidspath string
 	src = rand.NewSource(time.Now().UnixNano())
     n = 4
 )
@@ -56,13 +60,17 @@ func main()  {  // 错误，{ 不能在单独的行上
     xorstr := xorcmd.String("xorstr", "", "指定xor加密字符串")
 	xorpath := xorcmd.String("path", "", "指定xor加密文件")
 
+	uuidcmd := flag.NewFlagSet("uuidcmd", flag.ExitOnError)
+	uuidspath := uuidcmd.String("path", "", "指定将目标文件转为uuid格式文件")
+
 	//_ = filepath
 
     if len(os.Args) < 2 {
         fmt.Println("hexcmd -hexstr 指定hex编码字符串,-path 指定hex编码文件")
 		fmt.Println("b64cmd -b64str 指定base64编码字符串,-path 指定base64编码文件")
 		fmt.Println("urlcmd -urlstr 指定url编码字符串")
-		fmt.Println("xorcmd -xorstr 指定xor加密字符串,-path 指定xor加密文件",)
+		fmt.Println("xorcmd -xorstr 指定xor加密字符串,-path 指定xor加密文件")
+		fmt.Println("uuidcmd -path 指定uuid编码文件")
         os.Exit(1)
     }
 
@@ -102,11 +110,17 @@ func main()  {  // 错误，{ 不能在单独的行上
 		result := xorEncrypt([]byte(*xorstr),[]byte(key))
 		fmt.Printf("xor加密结果：%v",result)
 		}
+	case "uuidcmd":
+		uuidcmd.Parse(os.Args[2:])
+		if(*uuidspath!=""){
+			uuid_generate(*uuidspath)
+		}
 	default:
 		fmt.Println("hexcmd -hexstr 指定hex编码字符串,-path 指定hex编码文件")
 		fmt.Println("b64cmd -b64str 指定base64编码字符串,-path 指定base64编码文件")
 		fmt.Println("urlcmd -urlstr 指定url编码字符串,-path 指定url编码文件")
 		fmt.Println("xorcmd -xorstr 指定xor加密字符串")
+		fmt.Println("uuidcmd -path 指定uuid编码文件")
         os.Exit(1)
 	}
 	// if(hexstr!=""){
@@ -180,4 +194,63 @@ func xorkeygenerate() string{
 	  remain--
 	}
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+
+//uuid生成
+func shellcode_to_uuids(shellcode []byte) ([]string, error) {
+	// Pad shellcode to 16 bytes, the size of a UUID
+	if (len(shellcode)%16!=0) {
+		pad := bytes.Repeat([]byte{byte(0x90)}, 16-len(shellcode)%16)
+		shellcode = append(shellcode, pad...)
+	}
+
+	var uuids []string
+
+	for i := 0; i < len(shellcode); i += 16 {
+		var uuidBytes []byte
+
+		buf := make([]byte, 4)
+		binary.LittleEndian.PutUint32(buf, binary.BigEndian.Uint32(shellcode[i:i+4]))
+		uuidBytes = append(uuidBytes, buf...)
+
+		// Add next 2 bytes
+		buf = make([]byte, 2)
+		binary.LittleEndian.PutUint16(buf, binary.BigEndian.Uint16(shellcode[i+4:i+6]))
+		uuidBytes = append(uuidBytes, buf...)
+
+		// Add next 2 bytes
+		buf = make([]byte, 2)
+		binary.LittleEndian.PutUint16(buf, binary.BigEndian.Uint16(shellcode[i+6:i+8]))
+		uuidBytes = append(uuidBytes, buf...)
+
+		// Add remaining
+		uuidBytes = append(uuidBytes, shellcode[i+8:i+16]...)
+
+		u, err := uuid.FromBytes(uuidBytes)
+		if err != nil {
+			return nil, fmt.Errorf("there was an error converting bytes into a UUID:\n%s", err)
+		}
+
+		uuids = append(uuids, u.String())
+	}
+	return uuids, nil
+}
+
+func uuid_generate(srcpath string){
+	uuids, _ := shellcode_to_uuids(readfile(srcpath))
+	var despath = "uuid.txt"
+	file, err := os.OpenFile(despath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Println("文件打开失败", err)
+	}
+	defer file.Close()
+	write := bufio.NewWriter(file)
+	for _,i := range uuids{
+		write.WriteString("\""+i+"\""+",")
+	}
+	//Flush将缓存的文件真正写入到文件中
+	write.Flush()
+	fmt.Printf("生成文件名：%v",despath)
+
 }
